@@ -54,18 +54,18 @@ class EdgeChunk(size: Int = 4196) extends ByteArrayOutputStream(size) { self =>
     var currentDestNum = 0
     var currentContrib = 0.0f
 
-    override def hasNext = !changeVertex || vertices.hasNext
-
-    override def next() = {
-      if (!hasNext) Iterator.empty.next()
-      else {
-        if (changeVertex) {
-          val currentVertex = vertices.next()
-          while (currentVertex._1 != WritableComparator.readInt(buf, offset)) {
-            offset += 4
-            val numDests = WritableComparator.readInt(buf, offset)
-            offset += 4 + 4 * numDests
-          }
+    private def matchVertices() = {
+      assert(changeVertex)
+      var matched = false
+      while (!matched && vertices.hasNext) {
+        val currentVertex = vertices.next()
+        while (currentVertex._1 > WritableComparator.readInt(buf, offset)) {
+          offset += 4
+          val numDests = WritableComparator.readInt(buf, offset)
+          offset += 4 + 4 * numDests
+        }
+        if (currentVertex._1 == WritableComparator.readInt(buf, offset)) {
+          matched = true
           offset += 4
           currentDestNum = WritableComparator.readInt(buf, offset)
           offset += 4
@@ -73,7 +73,15 @@ class EdgeChunk(size: Int = 4196) extends ByteArrayOutputStream(size) { self =>
           currentContrib = currentVertex._2 / currentDestNum
           changeVertex = false
         }
+      }
+      matched
+    }
 
+    override def hasNext = !changeVertex || matchVertices()
+
+    override def next() = {
+      if (!hasNext) Iterator.empty.next()
+      else {
         currentDestIndex += 1
         if (currentDestIndex == currentDestNum) changeVertex = true
 
