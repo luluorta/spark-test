@@ -54,8 +54,11 @@ class EdgeChunk(size: Int = 4196) extends ByteArrayOutputStream(size) { self =>
     var currentDestNum = 0
     var currentContrib = 0.0f
 
-    private def matchVertices() = {
+    private def matchVertices(): Boolean = {
       assert(changeVertex)
+
+      if (offset >= self.count) return false
+
       var matched = false
       while (!matched && vertices.hasNext) {
         val currentVertex = vertices.next()
@@ -63,6 +66,8 @@ class EdgeChunk(size: Int = 4196) extends ByteArrayOutputStream(size) { self =>
           offset += 4
           val numDests = WritableComparator.readInt(buf, offset)
           offset += 4 + 4 * numDests
+
+          if (offset >= self.count) return false
         }
         if (currentVertex._1 == WritableComparator.readInt(buf, offset)) {
           matched = true
